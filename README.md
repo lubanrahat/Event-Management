@@ -1,123 +1,136 @@
 # Event Management System
 
-A full-stack event management platform with a Spring Boot backend and a modern React frontend.
-
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Architecture](#architecture)
-- [Backend Setup](#backend-setup)
-- [Frontend Setup](#frontend-setup)
-- [Configuration](#configuration)
-- [API Overview](#api-overview)
-- [Testing](#testing)
-- [License](#license)
-
----
+A full-stack event management application built with React TypeScript frontend and Spring Boot backend.
 
 ## Features
 
-- User registration, login, and JWT-based authentication
-- Role-based dashboards (Admin, Organizer, Attendee)
-- Event creation, update, and registration
-- Email notifications
-- MongoDB for data storage
-- Responsive, modern UI (React + Tailwind CSS)
-- OpenAPI/Swagger documentation
+- **User Authentication & Authorization** - JWT-based secure login and registration
+- **Event Management** - Create, view, edit, and delete events
+- **Calendar View** - Interactive calendar to visualize events
+- **Dashboard** - Overview of user's events and activities
+- **User Profiles** - Manage user information and preferences
+- **Dark/Light Theme** - Toggle between themes with persistent preferences
+- **Responsive Design** - Mobile-friendly interface with Tailwind CSS
 
----
+## Tech Stack
 
-## Architecture
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **React Router** for navigation
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **React Hot Toast** for notifications
+- **Lucide React** for icons
+- **React DatePicker** for date selection
 
-```mermaid
-graph TD
-  A[React Frontend] -- REST API --> B[Spring Boot Backend]
-  B -- MongoDB --> C[(Database)]
-  B -- SMTP --> D[(Email Service)]
+### Backend
+- **Spring Boot 3.2.5** with Java 21
+- **Spring Security** for authentication
+- **MongoDB** for data persistence
+- **JWT** for token-based authentication
+- **Lombok** for reducing boilerplate code
+
+## Project Structure
+
+```
+├── frontend/                 # React TypeScript frontend
+│   ├── src/
+│   │   ├── components/      # React components
+│   │   │   ├── Auth/        # Authentication components
+│   │   │   ├── Calendar/    # Calendar view components
+│   │   │   ├── Dashboard/   # Dashboard components
+│   │   │   ├── Events/      # Event management components
+│   │   │   ├── Layout/      # Layout components
+│   │   │   └── ui/          # Reusable UI components
+│   │   ├── contexts/        # React contexts (Auth, Theme)
+│   │   ├── services/        # API service functions
+│   │   ├── types/           # TypeScript type definitions
+│   │   └── utils/           # Utility functions
+│   └── package.json
+└── backend/                 # Spring Boot backend
+    ├── src/
+    │   ├── main/java/       # Java source code
+    │   └── test/java/       # Test files
+    └── pom.xml
 ```
 
----
+## Prerequisites
 
-## Backend Setup
+- **Node.js** (v18 or higher)
+- **Java** (v21 or higher)
+- **Maven** (v3.6 or higher)
+- **MongoDB** (v4.4 or higher)
 
-**Tech Stack:** Java 17, Spring Boot 3, MongoDB
+## Getting Started
 
-1. **Install Java 17** and [Maven](https://maven.apache.org/).
-2. **Configure MongoDB:**
-   - Default URI: `mongodb://localhost:27017/fontend`
-   - Or set `MONGODB_URI` environment variable.
-3. **Configure Email (Mailtrap by default):**  
-   Edit `backend/src/main/resources/application.yml` for SMTP settings.
-4. **Build & Run:**
-   ```sh
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
    cd backend
+   ```
+
+2. Install dependencies and build:
+   ```bash
    mvn clean install
+   ```
+
+3. Configure MongoDB connection in `application.properties`
+
+4. Run the Spring Boot application:
+   ```bash
    mvn spring-boot:run
    ```
-5. **API Docs:**  
-   Visit [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
----
+The backend will start on `http://localhost:8080`
 
-## Frontend Setup
+### Frontend Setup
 
-**Tech Stack:** React 18, TypeScript, Vite, Tailwind CSS
-
-1. **Install Node.js (v18+) and npm**
-2. **Install dependencies:**
-   ```sh
+1. Navigate to the frontend directory:
+   ```bash
    cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
    npm install
    ```
-3. **Run the app:**
-   ```sh
+
+3. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Update the `.env` file with your backend URL (default: `http://localhost:8080/api`)
+
+4. Start the development server:
+   ```bash
    npm run dev
    ```
-4. **Build for production:**
-   ```sh
-   npm run build
-   ```
 
----
+The frontend will start on `http://localhost:5173`
 
-## Configuration
+## Available Scripts
 
-- **Backend:**  
-  Edit `backend/src/main/resources/application.yml` for DB, JWT, mail, and logging.
-- **Frontend:**  
-  API base URL and other settings can be configured in `frontend/src/services/`.
+### Frontend
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
 
----
+### Backend
+- `mvn spring-boot:run` - Start the application
+- `mvn test` - Run tests
+- `mvn clean install` - Clean and build the project
 
-## API Overview
+## Environment Variables
 
-| Endpoint             | Method | Description         |
-| -------------------- | ------ | ------------------- |
-| `/api/auth/register` | POST   | Register a new user |
-| `/api/auth/login`    | POST   | User login          |
-| `/api/events`        | CRUD   | Manage events       |
-| `/api/registrations` | CRUD   | Register for events |
-| `/api/users/profile` | GET    | Get user profile    |
-| `/api/dashboard`     | GET    | Dashboard data      |
+### Frontend (.env)
+```
+VITE_API_BASE_URL=http://localhost:8080/api
+```
 
-> See Swagger UI for full API details.
-
----
-
-## Testing
-
-- **Backend:**
-  ```sh
-  cd backend
-  mvn test
-  ```
-- **Frontend:**  
-  Add your preferred testing framework (e.g., Jest, React Testing Library).
-
----
-
-## License
-
-This project is licensed under the MIT License.
+### Backend
+Configure in `application.properties`:
+- Database connection settings
+- JWT secret key

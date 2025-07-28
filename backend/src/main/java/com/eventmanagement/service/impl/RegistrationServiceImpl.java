@@ -7,6 +7,7 @@ import com.eventmanagement.repository.RegistrationRepository;
 import com.eventmanagement.service.RegistrationService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +23,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
+    @Transactional
     public RegistrationResponse register(String userId, RegistrationCreateRequest request) {
         Event event = eventRepository.findById(request.getEventId())
                 .orElseThrow(() -> new RuntimeException("Event not found"));
@@ -55,14 +57,24 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
+    @Transactional
     public void cancelRegistration(String registrationId, String userId) {
         Registration reg = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new RuntimeException("Registration not found"));
         if (!reg.getUserId().equals(userId)) {
             throw new RuntimeException("Not authorized to cancel this registration");
         }
+        
+        RegistrationStatus originalStatus = reg.getStatus();
         reg.setStatus(RegistrationStatus.CANCELLED);
-        registrationRepository.save(reg);
+        
+        try {
+            Registration savedReg = registrationRepository.save(reg);
+            System.out.println("Successfully cancelled registration " + registrationId + " for user " + userId + ". Status changed from " + originalStatus + " to " + savedReg.getStatus());
+        } catch (Exception e) {
+            System.err.println("Failed to cancel registration " + registrationId + " in database: " + e.getMessage());
+            throw new RuntimeException("Failed to cancel registration in database", e);
+        }
     }
 
     @Override
@@ -91,8 +103,11 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     public List<com.eventmanagement.dto.EventResponse> getRegisteredEventsForUser(String userId) {
         return registrationRepository.findByUserId(userId).stream()
+                .filter(reg -> reg.getStatus() != RegistrationStatus.CANCELLED)
                 .map(reg -> eventRepository.findById(reg.getEventId())
                         .map(event -> {
+                            // Filter out cancelled events
+                            if (event.getStatus() == EventStatus.CANCELLED) return null;
                             com.eventmanagement.dto.EventResponse resp = new com.eventmanagement.dto.EventResponse();
                             org.springframework.beans.BeanUtils.copyProperties(event, resp);
                             if (event.getLocation() != null) {
@@ -123,7 +138,8 @@ public class RegistrationServiceImpl implements RegistrationService {
             .filter(reg -> reg.getStatus() == RegistrationStatus.CONFIRMED)
             .map(reg -> {
                 Event event = eventRepository.findById(reg.getEventId()).orElse(null);
-                if (event == null) return null;
+                // Filter out cancelled events
+                if (event == null || event.getStatus() == EventStatus.CANCELLED) return null;
                 ConfirmedRegistrationWithEventResponse dto = new ConfirmedRegistrationWithEventResponse();
                 RegistrationResponse regResp = toResponse(reg);
                 EventResponse eventResp = new EventResponse();
@@ -145,11 +161,30 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     @Override
     public List<ConfirmedRegistrationWithEventResponse> getActiveRegistrationsWithEventByUser(String userId) {
-        return registrationRepository.findByUserId(userId).stream()
+        List<Registration> allRegistrations = registrationRepository.findByUserId(userId);
+        System.out.println("Total registrations for user " + userId + ": " + allRegistrations.size());
+        
+        List<Registration> activeRegistrations = allRegistrations.stream()
             .filter(reg -> reg.getStatus() != RegistrationStatus.CANCELLED)
+            .collect(java.util.stream.Collectors.toList());
+        System.out.println("Active registrations (not cancelled): " + activeRegistrations.size());
+        
+        List<ConfirmedRegistrationWithEventResponse> result = activeRegistrations.stream()
             .map(reg -> {
                 Event event = eventRepository.findById(reg.getEventId()).orElse(null);
-                if (event == null) return null;
+                if (event == null) {
+                    System.out.println("Event not found for registration: " + reg.getEventId());
+                    return null;
+                }
+                
+                System.out.println("Event " + event.getId() + " status: " + event.getStatus());
+                
+                // Filter out cancelled events
+                if (event.getStatus() == EventStatus.CANCELLED) {
+                    System.out.println("Filtering out cancelled event: " + event.getId());
+                    return null;
+                }
+                
                 ConfirmedRegistrationWithEventResponse dto = new ConfirmedRegistrationWithEventResponse();
                 RegistrationResponse regResp = toResponse(reg);
                 EventResponse eventResp = new EventResponse();
@@ -167,6 +202,9 @@ public class RegistrationServiceImpl implements RegistrationService {
             })
             .filter(java.util.Objects::nonNull)
             .collect(java.util.stream.Collectors.toList());
+            
+        System.out.println("Final result count: " + result.size());
+        return result;
     }
 
     private RegistrationResponse toResponse(Registration reg) {

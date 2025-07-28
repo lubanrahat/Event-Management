@@ -10,6 +10,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 @Service
@@ -28,28 +29,47 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserProfileResponse updateProfile(String userId, UserUpdateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("User not found"));
+        
+        // Store original values for logging
+        String originalFirstName = user.getFirstName();
+        String originalLastName = user.getLastName();
+        String originalPhone = user.getPhone();
+        
+        System.out.println("Updating profile for user " + userId + ": " + originalFirstName + " " + originalLastName + " -> " + request.getFirstName() + " " + request.getLastName());
+        
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setPhone(request.getPhone());
         user.setProfileImage(request.getProfileImage());
+        
         if (request.getPreferences() != null) {
             if (user.getPreferences() == null) {
                 user.setPreferences(new User.UserPreferences());
             }
             user.getPreferences().setCategories(request.getPreferences());
         }
+        
         if (request.getNotifications() != null) {
             if (user.getPreferences() == null) {
                 user.setPreferences(new User.UserPreferences());
             }
             user.getPreferences().setNotifications(request.getNotifications());
         }
+        
         user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-        return toProfileResponse(user);
+        
+        try {
+            User savedUser = userRepository.save(user);
+            System.out.println("Successfully updated profile for user " + userId + " in database. Name: " + savedUser.getFirstName() + " " + savedUser.getLastName() + ", Phone: " + savedUser.getPhone());
+            return toProfileResponse(savedUser);
+        } catch (Exception e) {
+            System.err.println("Failed to update profile for user " + userId + " in database: " + e.getMessage());
+            throw new RuntimeException("Failed to update profile in database", e);
+        }
     }
 
     @Override

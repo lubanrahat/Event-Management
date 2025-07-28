@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   Calendar,
@@ -8,8 +8,9 @@ import {
   TrendingUp,
   Users,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { Button } from "../ui/Button";
 
@@ -39,24 +40,69 @@ interface DashboardData {
 const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   let endpoint = "/dashboard/attendee";
   if (user?.role === "ADMIN") endpoint = "/dashboard/admin";
   else if (user?.role === "ORGANIZER") endpoint = "/dashboard/organizer";
+  
+  console.log("User role:", user?.role, "Endpoint:", endpoint);
+
+  const loadDashboardData = useCallback(async () => {
+    if (!token) return;
+    
+    try {
+      setIsRefreshing(true);
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!res.ok) throw new Error("Failed to fetch dashboard data");
+      const result = await res.json();
+      console.log("Dashboard data received:", result);
+      setData(result);
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+      // Set empty data on error
+      setData({ registrations: [], count: 0 });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [token, endpoint]);
 
   useEffect(() => {
-    if (!token) return;
-    fetch(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch dashboard data");
-        return res.json();
-      })
-      .then(setData)
-      .catch(() => {});
-  }, [token, endpoint]);
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Refresh data when navigating to dashboard
+  useEffect(() => {
+    if (location.pathname === '/dashboard') {
+      loadDashboardData();
+    }
+  }, [location.pathname, loadDashboardData]);
+
+  // Refresh dashboard data when the component becomes visible or window gains focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadDashboardData();
+      }
+    };
+
+    const handleFocus = () => {
+      loadDashboardData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadDashboardData]);
 
   const registrations: RegistrationWithEvent[] = data?.registrations || [];
   const registrationCount = data?.count || 0;
@@ -74,25 +120,39 @@ const Dashboard: React.FC = () => {
       <div className="relative max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Welcome Header */}
         <div className="mb-8 animate-slideUp">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="relative">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <Sparkles className="h-6 w-6 text-white animate-bounce-gentle" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <Sparkles className="h-6 w-6 text-white animate-bounce-gentle" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+                  Welcome back,{" "}
+                  <span className="gradient-text capitalize">
+                    {user?.firstName || "User"}
+                  </span>
+                  !
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 text-lg mt-1">
+                  Ready to discover amazing events? Let's make it happen ✨
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-                Welcome back,{" "}
-                <span className="gradient-text capitalize">
-                  {user?.firstName || "User"}
-                </span>
-                !
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-lg mt-1">
-                Ready to discover amazing events? Let's make it happen ✨
-              </p>
-            </div>
+            
+            {/* Refresh Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadDashboardData}
+              disabled={isRefreshing}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </Button>
           </div>
         </div>
 

@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (userData: any) => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,6 +83,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    if (token) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Failed to refresh user data:", error);
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -91,6 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         login,
         register,
         logout,
+        refreshUser,
       }}
     >
       {children}

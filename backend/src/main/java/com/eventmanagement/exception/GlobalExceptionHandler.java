@@ -22,12 +22,25 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, WebRequest request) {
+    public ResponseEntity<ValidationErrorResponse> handleValidationException(MethodArgumentNotValidException ex, WebRequest request) {
         Map<String, String> errors = new HashMap<>();
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
         }
-        ErrorResponse error = new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), "Validation failed", errors.toString());
+        
+        // Create a more user-friendly message
+        String message = "Validation failed: " + errors.entrySet().stream()
+            .map(entry -> entry.getKey() + " - " + entry.getValue())
+            .reduce((a, b) -> a + "; " + b)
+            .orElse("Unknown validation error");
+            
+        ValidationErrorResponse error = new ValidationErrorResponse(
+            LocalDateTime.now(), 
+            HttpStatus.BAD_REQUEST.value(), 
+            message, 
+            request.getDescription(false),
+            errors
+        );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
@@ -60,5 +73,16 @@ public class GlobalExceptionHandler {
         public int getStatus() { return status; }
         public String getMessage() { return message; }
         public String getDetails() { return details; }
+    }
+
+    public static class ValidationErrorResponse extends ErrorResponse {
+        private Map<String, String> fieldErrors;
+
+        public ValidationErrorResponse(LocalDateTime timestamp, int status, String message, String details, Map<String, String> fieldErrors) {
+            super(timestamp, status, message, details);
+            this.fieldErrors = fieldErrors;
+        }
+
+        public Map<String, String> getFieldErrors() { return fieldErrors; }
     }
 } 

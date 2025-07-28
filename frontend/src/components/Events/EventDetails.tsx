@@ -10,11 +10,16 @@ import {
   XCircle,
   AlertCircle,
   ArrowLeft,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { eventService } from "../../services/eventService";
 import { registrationService } from "../../services/registrationService";
 import { Event, Registration } from "../../types";
+import { Button } from "../ui/Button";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 interface EventDetailsProps {
   eventId: string;
@@ -26,10 +31,12 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
   onNavigate,
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [registration, setRegistration] = useState<Registration | null>(null);
   const [registrationCount, setRegistrationCount] = useState(0);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadEventDetails();
@@ -64,7 +71,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
     setIsRegistering(true);
     try {
       const newRegistration: Registration =
-        await registrationService.registerForEvent(event.id, user.id);
+        await registrationService.registerForEvent(event.id);
       if (newRegistration) {
         setRegistration(newRegistration);
         loadEventDetails(); // Refresh data
@@ -83,6 +90,34 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
       await registrationService.cancelRegistration(registration.id);
       setRegistration(null);
       loadEventDetails(); // Refresh data
+    }
+  };
+
+  const handleEditEvent = () => {
+    navigate(`/events/${eventId}/edit`);
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!event || !user) return;
+
+    const confirmMessage = `Are you sure you want to delete "${event.title}"? This action cannot be undone.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      setIsDeleting(true);
+      await eventService.deleteEvent(eventId);
+      console.log("Event deleted successfully:", eventId);
+      toast.success("Event deleted successfully");
+      
+      // Small delay to ensure database changes are reflected
+      setTimeout(() => {
+        navigate("/events");
+      }, 500);
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      toast.error("Failed to delete event. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -182,13 +217,44 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
           transition={{ duration: 0.6 }}
           className="mb-6"
         >
-          <button
-            onClick={() => onNavigate("events")}
-            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4 transition-colors duration-200"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Events
-          </button>
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => onNavigate("events")}
+              className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors duration-200"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Events
+            </button>
+
+            {/* Edit and Delete buttons for admins, organizers, and event owners */}
+            {user && event && (
+              user.role === "ADMIN" || 
+              user.role === "ORGANIZER" || 
+              event.organizerId === user.id
+            ) && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEditEvent}
+                  className="flex items-center space-x-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Edit</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteEvent}
+                  disabled={isDeleting}
+                  className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+                </Button>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Event Image */}

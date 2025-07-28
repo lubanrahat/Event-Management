@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Calendar, MapPin, Users, Clock, Sparkles, Star, ChevronDown } from "lucide-react";
+import { Search, Filter, Calendar, MapPin, Users, Clock, Sparkles, Star, ChevronDown, Edit, Trash2, MoreVertical } from "lucide-react";
 import { eventService } from "../../services/eventService";
 import { registrationService } from "../../services/registrationService";
 import { useAuth } from "../../contexts/AuthContext";
 import type { Event, EventCategory, Registration } from "../../types";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import toast from "react-hot-toast";
 
 interface EventListProps {
   onNavigate: (page: string, eventId?: string) => void;
@@ -15,6 +16,7 @@ interface EventListProps {
 
 export const EventList: React.FC<EventListProps> = ({ onNavigate }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
   const [showSuccess, setShowSuccess] = useState(
     Boolean(location.state && location.state.eventCreated)
@@ -29,6 +31,7 @@ export const EventList: React.FC<EventListProps> = ({ onNavigate }) => {
   const [userRegistrations, setUserRegistrations] = useState<Registration[]>(
     []
   );
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const categories: EventCategory[] = [
     "CONFERENCE",
@@ -59,6 +62,18 @@ export const EventList: React.FC<EventListProps> = ({ onNavigate }) => {
   useEffect(() => {
     filterEvents();
   }, [events, searchQuery, selectedCategory]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+
+    if (openDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdown]);
 
   const loadEvents = async () => {
     const allEvents = await eventService.getEvents();
@@ -137,6 +152,42 @@ export const EventList: React.FC<EventListProps> = ({ onNavigate }) => {
       default:
         return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300";
     }
+  };
+
+  const handleEditEvent = (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/events/${eventId}/edit`);
+    setOpenDropdown(null);
+  };
+
+  const handleDeleteEvent = async (event: Event, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenDropdown(null);
+
+    const confirmMessage = `Are you sure you want to delete "${event.title}"? This action cannot be undone.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      await eventService.deleteEvent(event.id);
+      console.log("Event deleted successfully:", event.id);
+      toast.success("Event deleted successfully");
+      
+      // Small delay to ensure database changes are reflected
+      setTimeout(() => {
+        loadEvents(); // Refresh the events list
+      }, 500);
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      toast.error("Failed to delete event. Please try again.");
+    }
+  };
+
+  const canEditEvent = (event: Event) => {
+    return user && (
+      user.role === "ADMIN" || 
+      user.role === "ORGANIZER" || 
+      event.organizerId === user.id
+    );
   };
 
   return (
@@ -276,7 +327,7 @@ export const EventList: React.FC<EventListProps> = ({ onNavigate }) => {
                   key={event.id}
                   hover
                   padding="none"
-                  className="group overflow-hidden cursor-pointer animate-fadeIn hover:shadow-glow transition-all duration-300"
+                  className="group overflow-hidden cursor-pointer animate-fadeIn hover:shadow-glow transition-all duration-300 relative"
                   style={{ animationDelay: `${index * 100}ms` }}
                   onClick={() => onNavigate("event-details", event.id)}
                 >
@@ -315,6 +366,44 @@ export const EventList: React.FC<EventListProps> = ({ onNavigate }) => {
                             Available
                           </span>
                         )}
+                      </div>
+                    )}
+
+                    {/* Edit/Delete Dropdown */}
+                    {canEditEvent(event) && (
+                      <div className="absolute top-3 right-3">
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdown(openDropdown === event.id ? null : event.id);
+                            }}
+                            className="p-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-all duration-200"
+                          >
+                            <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                          </button>
+
+                          {openDropdown === event.id && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20 animate-slideDown">
+                              <div className="py-1">
+                                <button
+                                  onClick={(e) => handleEditEvent(event.id, e)}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Event
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteEvent(event, e)}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Event
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

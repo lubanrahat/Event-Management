@@ -25,6 +25,7 @@ public class DashboardController {
     @GetMapping("/attendee")
     public ResponseEntity<?> getAttendeeStats(@RequestAttribute("userId") String userId) {
         var activeRegistrationsWithEvent = registrationService.getActiveRegistrationsWithEventByUser(userId);
+        System.out.println("Dashboard - User: " + userId + ", Active registrations count: " + activeRegistrationsWithEvent.size());
         java.util.Map<String, Object> response = new java.util.HashMap<>();
         response.put("registrations", activeRegistrationsWithEvent);
         response.put("count", activeRegistrationsWithEvent.size());

@@ -52,6 +52,7 @@ com/eventmanagement/service/EmailService.class
 com/eventmanagement/model/User$UserBuilder.class
 com/eventmanagement/security/JwtAuthFilter.class
 com/eventmanagement/model/User$UserPreferences$UserPreferencesBuilder.class
+com/eventmanagement/exception/GlobalExceptionHandler$ValidationErrorResponse.class
 com/eventmanagement/EventManagementApplication.class
 com/eventmanagement/model/Event$EventBuilder.class
 com/eventmanagement/config/OpenApiConfig.class

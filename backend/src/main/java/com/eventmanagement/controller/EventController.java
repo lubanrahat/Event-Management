@@ -76,4 +76,15 @@ public class EventController {
     public ResponseEntity<List<String>> listCategories() {
         return ResponseEntity.ok(eventService.listCategories());
     }
+    
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/verify-database")
+    public ResponseEntity<String> verifyDatabase() {
+        try {
+            ((com.eventmanagement.service.impl.EventServiceImpl) eventService).verifyDatabaseConnectivity();
+            return ResponseEntity.ok("Database connectivity verified successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Database verification failed: " + e.getMessage());
+        }
+    }
 } 

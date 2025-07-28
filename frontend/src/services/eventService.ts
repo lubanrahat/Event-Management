@@ -39,7 +39,12 @@ class EventService {
     const res = await fetchWithAuth(`${API_BASE}/events/${id}`, {
       headers: { ...this.getAuthHeader() },
     });
-    if (!res.ok) throw new Error("Failed to fetch event");
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("Event not found or has been cancelled");
+      }
+      throw new Error("Failed to fetch event");
+    }
     const event = await res.json();
     // Map backend event to include nested location object
     return {
@@ -70,7 +75,13 @@ class EventService {
       headers: { "Content-Type": "application/json", ...this.getAuthHeader() },
       body: JSON.stringify(eventData),
     });
-    if (!res.ok) throw new Error("Failed to update event");
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      const error = new Error(errorData.message || "Failed to update event");
+      (error as any).response = res;
+      (error as any).data = errorData;
+      throw error;
+    }
     return res.json();
   }
 

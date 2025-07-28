@@ -2,7 +2,6 @@ package com.eventmanagement.dto;
 
 import com.eventmanagement.model.EventCategory;
 import com.eventmanagement.model.LocationType;
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,11 +21,9 @@ public class EventUpdateRequest {
     private EventCategory category;
 
     @NotNull
-    @Future
     private LocalDateTime startDateTime;
 
     @NotNull
-    @Future
     private LocalDateTime endDateTime;
 
     @NotNull
@@ -41,7 +38,6 @@ public class EventUpdateRequest {
     private int capacity;
 
     @NotNull
-    @Future
     private LocalDateTime registrationDeadline;
 
     private List<String> tags;

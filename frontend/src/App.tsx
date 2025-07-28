@@ -17,6 +17,7 @@ import Dashboard from "./components/Dashboard/Dashboard";
 import { EventList } from "./components/Events/EventList";
 import { EventDetails } from "./components/Events/EventDetails";
 import { CreateEvent } from "./components/Events/CreateEvent";
+import { EditEvent } from "./components/Events/EditEvent";
 import { EventCalendar } from "./components/Calendar/EventCalendar";
 import Profile from "./components/Profile";
 import { Toaster } from "react-hot-toast";
@@ -70,6 +71,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <EventDetailsWithParams onNavigate={handleEventListNavigate} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/:eventId/edit"
+            element={
+              <ProtectedRoute>
+                <EditEvent />
               </ProtectedRoute>
             }
           />

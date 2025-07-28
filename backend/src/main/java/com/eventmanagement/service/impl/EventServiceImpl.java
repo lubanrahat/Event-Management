@@ -9,6 +9,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -26,6 +27,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
     public EventResponse createEvent(String organizerId, EventCreateRequest request) {
         Event event = Event.builder()
                 .title(request.getTitle())
@@ -51,17 +53,30 @@ public class EventServiceImpl implements EventService {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-        eventRepository.save(event);
-        return toEventResponse(event);
+        
+        try {
+            Event savedEvent = eventRepository.save(event);
+            System.out.println("Successfully created event '" + savedEvent.getTitle() + "' with ID " + savedEvent.getId() + " in database");
+            return toEventResponse(savedEvent);
+        } catch (Exception e) {
+            System.err.println("Failed to create event '" + request.getTitle() + "' in database: " + e.getMessage());
+            throw new RuntimeException("Failed to create event in database", e);
+        }
     }
 
     @Override
+    @Transactional
     public EventResponse updateEvent(String eventId, String userId, EventUpdateRequest request) {
+        System.out.println("Updating event " + eventId + " with request: " + request);
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
-        if (!event.getOrganizerId().equals(userId)) {
-            throw new RuntimeException("Not authorized to update this event");
-        }
+        
+        // Store original values for logging
+        String originalTitle = event.getTitle();
+        EventStatus originalStatus = event.getStatus();
+        
+        // Authorization is handled by @PreAuthorize in the controller
+        // No need to check here as the security layer already validated permissions
         event.setTitle(request.getTitle());
         event.setDescription(request.getDescription());
         event.setCategory(request.getCategory());
@@ -81,33 +96,76 @@ public class EventServiceImpl implements EventService {
         event.setRequirements(request.getRequirements());
         event.setAgenda(request.getAgenda());
         event.setUpdatedAt(LocalDateTime.now());
-        eventRepository.save(event);
-        return toEventResponse(event);
+        
+        try {
+            Event savedEvent = eventRepository.save(event);
+            System.out.println("Successfully updated event " + eventId + " in database. Title changed from '" + originalTitle + "' to '" + savedEvent.getTitle() + "'");
+            verifyEventInDatabase(eventId, "update");
+            return toEventResponse(savedEvent);
+        } catch (Exception e) {
+            System.err.println("Failed to update event " + eventId + " in database: " + e.getMessage());
+            throw new RuntimeException("Failed to update event in database", e);
+        }
     }
 
     @Override
+    @Transactional
     public void deleteEvent(String eventId, String userId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
-        if (!event.getOrganizerId().equals(userId)) {
-            throw new SecurityException("Not authorized to delete this event");
+        
+        String eventTitle = event.getTitle();
+        EventStatus originalStatus = event.getStatus();
+        
+        // Authorization is handled by @PreAuthorize in the controller
+        // No need to check here as the security layer already validated permissions
+        
+        try {
+            // Cancel all registrations for this event
+            List<Registration> registrations = registrationRepository.findByEventId(eventId);
+            System.out.println("Cancelling " + registrations.size() + " registrations for event " + eventId + " ('" + eventTitle + "')");
+            
+            int cancelledCount = 0;
+            for (Registration registration : registrations) {
+                if (registration.getStatus() != RegistrationStatus.CANCELLED) {
+                    System.out.println("Cancelling registration " + registration.getId() + " for user " + registration.getUserId());
+                    registration.setStatus(RegistrationStatus.CANCELLED);
+                    registrationRepository.save(registration);
+                    cancelledCount++;
+                }
+            }
+            
+            // Soft delete: set status to CANCELLED
+            event.setStatus(EventStatus.CANCELLED);
+            event.setUpdatedAt(LocalDateTime.now());
+            Event savedEvent = eventRepository.save(event);
+            
+            System.out.println("Successfully deleted event " + eventId + " ('" + eventTitle + "') from database. Status changed from " + originalStatus + " to " + savedEvent.getStatus() + ". Cancelled " + cancelledCount + " registrations.");
+            verifyEventInDatabase(eventId, "delete");
+            
+        } catch (Exception e) {
+            System.err.println("Failed to delete event " + eventId + " from database: " + e.getMessage());
+            throw new RuntimeException("Failed to delete event from database", e);
         }
-        // Soft delete: set status to CANCELLED
-        event.setStatus(EventStatus.DRAFT); // Or a custom CANCELLED status if you add it
-        event.setUpdatedAt(LocalDateTime.now());
-        eventRepository.save(event);
     }
 
     @Override
     public EventResponse getEventById(String eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
+        
+        // Check if event is cancelled
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            throw new RuntimeException("Event has been cancelled");
+        }
+        
         return toEventResponse(event);
     }
 
     @Override
     public Page<EventResponse> listEvents(Pageable pageable) {
-        return eventRepository.findAll(pageable).map(this::toEventResponse);
+        // Only return events that are not cancelled
+        return eventRepository.findByStatusNot(EventStatus.CANCELLED, pageable).map(this::toEventResponse);
     }
 
     @Override
@@ -118,7 +176,8 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Page<EventResponse> listEventsByOrganizer(String organizerId, Pageable pageable) {
-        List<Event> events = eventRepository.findByOrganizerId(organizerId);
+        // Only return events that are not cancelled
+        List<Event> events = eventRepository.findByOrganizerIdAndStatusNot(organizerId, EventStatus.CANCELLED);
         List<EventResponse> responses = events.stream().map(this::toEventResponse).collect(Collectors.toList());
         // Manual pagination for now
         int start = (int) pageable.getOffset();
@@ -130,9 +189,8 @@ public class EventServiceImpl implements EventService {
     public EventResponse updateEventStatus(String eventId, String userId, String status) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
-        if (!event.getOrganizerId().equals(userId)) {
-            throw new RuntimeException("Not authorized to update status");
-        }
+        // Authorization is handled by @PreAuthorize in the controller
+        // No need to check here as the security layer already validated permissions
         EventStatus newStatus = EventStatus.valueOf(status);
         // Enforce valid status transitions if needed
         event.setStatus(newStatus);
@@ -144,6 +202,20 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<String> listCategories() {
         return Arrays.stream(EventCategory.values()).map(Enum::name).collect(Collectors.toList());
+    }
+    
+    // Method to verify database connectivity and operations
+    public void verifyDatabaseConnectivity() {
+        try {
+            long totalEvents = eventRepository.count();
+            long publishedEvents = eventRepository.findByStatusNot(EventStatus.CANCELLED, org.springframework.data.domain.Pageable.unpaged()).getTotalElements();
+            long cancelledEvents = totalEvents - publishedEvents;
+            
+            System.out.println("Database connectivity verified. Total events: " + totalEvents + ", Published: " + publishedEvents + ", Cancelled: " + cancelledEvents);
+        } catch (Exception e) {
+            System.err.println("Database connectivity check failed: " + e.getMessage());
+            throw new RuntimeException("Database connectivity issue", e);
+        }
     }
 
     private EventResponse toEventResponse(Event event) {
@@ -159,5 +231,20 @@ public class EventServiceImpl implements EventService {
         int registeredCount = (int) registrationRepository.countByEventIdAndStatus(event.getId(), RegistrationStatus.CONFIRMED);
         resp.setRegisteredCount(registeredCount);
         return resp;
+    }
+    
+    // Helper method to verify database state after operations
+    private void verifyEventInDatabase(String eventId, String operation) {
+        try {
+            Optional<Event> eventOpt = eventRepository.findById(eventId);
+            if (eventOpt.isPresent()) {
+                Event event = eventOpt.get();
+                System.out.println("Database verification after " + operation + " - Event " + eventId + ": title='" + event.getTitle() + "', status=" + event.getStatus() + ", updatedAt=" + event.getUpdatedAt());
+            } else {
+                System.out.println("Database verification after " + operation + " - Event " + eventId + " not found in database");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to verify event " + eventId + " in database: " + e.getMessage());
+        }
     }
 } 

@@ -26,12 +26,15 @@ public class EventSecurity {
         
         System.out.println("[EventSecurity] User: " + user.getEmail() + ", Role: " + user.getRole() + ", Authorities: " + authentication.getAuthorities());
        
+        // Allow ADMIN and ORGANIZER roles to edit/delete any event
         for (GrantedAuthority authority : authentication.getAuthorities()) {
-            if (authority.getAuthority().equals("ROLE_ADMIN")) {
+            if (authority.getAuthority().equals("ROLE_ADMIN") || 
+                authority.getAuthority().equals("ROLE_ORGANIZER")) {
                 return true;
             }
         }
         
+        // Also allow the original event owner
         Event event = eventRepository.findById(eventId).orElse(null);
         return event != null && event.getOrganizerId().equals(user.getId());
     }
