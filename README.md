@@ -10,12 +10,11 @@ A full-stack web application for managing events, registrations, and user intera
 - **User Authentication**: JWT-based authentication with role-based access control
 - **Registration System**: Event registration with status tracking (Confirmed, Waitlisted, Cancelled)
 - **Dashboard**: Role-specific dashboards for Organizers, Attendees, and Admins
-- **Email Notifications**: Automated email notifications for registrations and updates
 - **Calendar Integration**: Event calendar view for better scheduling
 
 ### User Roles
 
-- **Organizer**: Create and manage events, view registrations, send notifications
+- **Organizer**: Create and manage events, view registrations
 - **Attendee**: Browse events, register for events, manage personal profile
 - **Admin**: Full system access, user management, event oversight
 
@@ -32,11 +31,10 @@ A full-stack web application for managing events, registrations, and user intera
 
 ### Backend
 
-- **Java 17** with **Spring Boot 3.2.5**
+- **Java 21** with **Spring Boot 3.2.5**
 - **MongoDB** for data persistence
 - **Spring Security** with JWT authentication
 - **Spring Data MongoDB** for data access
-- **Spring Mail** for email notifications
 - **Lombok** for boilerplate reduction
 - **SpringDoc OpenAPI** for API documentation
 - **Micrometer** for metrics and monitoring
@@ -79,17 +77,6 @@ Set up your MongoDB connection in `backend/src/main/resources/application.proper
 spring.data.mongodb.uri=mongodb://localhost:27017/eventmanagementdb
 ```
 
-#### Configure Email (Optional)
-
-Update email settings for notifications:
-
-```properties
-spring.mail.host=your-smtp-host
-spring.mail.port=587
-spring.mail.username=your-email
-spring.mail.password=your-password
-```
-
 #### Run the Backend
 
 ```bash
@@ -116,13 +103,6 @@ npm run dev
 ```
 
 The frontend will start on `http://localhost:5173`
-
-## 📚 API Documentation
-
-Once the backend is running, you can access the API documentation at:
-
-- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
-- **OpenAPI JSON**: `http://localhost:8080/v3/api-docs`
 
 ### Key API Endpoints
 
@@ -191,10 +171,6 @@ Event Management/
 - `MONGODB_URI`: MongoDB connection string
 - `JWT_SECRET`: Secret key for JWT tokens
 - `JWT_EXPIRATION`: JWT token expiration time
-- `MAIL_HOST`: SMTP server host
-- `MAIL_PORT`: SMTP server port
-- `MAIL_USERNAME`: Email username
-- `MAIL_PASSWORD`: Email password
 
 #### Frontend
 
@@ -208,46 +184,6 @@ The application uses MongoDB with the following collections:
 - `events`: Event information and metadata
 - `registrations`: Event registration records
 
-## 🧪 Testing
-
-### Backend Tests
-
-```bash
-cd backend
-mvn test
-```
-
-### Frontend Tests
-
-```bash
-cd frontend
-npm run test
-```
-
-## 🚀 Development Build
-
-### Backend Build
-
-To create a JAR file for testing or distribution:
-
-```bash
-cd backend
-mvn clean package
-```
-
-The JAR file will be created in `target/fontend-backend-0.0.1-SNAPSHOT.jar`
-
-### Frontend Build
-
-To create a production build for testing:
-
-```bash
-cd frontend
-npm run build
-```
-
-The build output will be in the `dist` folder
-
 ## 🔒 Security Features
 
 - **JWT Authentication**: Secure token-based authentication
@@ -256,33 +192,6 @@ The build output will be in the `dist` folder
 - **CORS Configuration**: Cross-origin resource sharing setup
 - **Password Security**: Encrypted password storage
 
-## 📊 Monitoring
-
-The application includes monitoring endpoints:
-
-- **Health Check**: `GET /actuator/health`
-- **Application Info**: `GET /actuator/info`
-- **Metrics**: `GET /actuator/metrics`
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-
-- Create an issue in the repository
-- Contact the development team
-- Check the API documentation at `/swagger-ui.html`
 
 ## 🔄 Version History
 
