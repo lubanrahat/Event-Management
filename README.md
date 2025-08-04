@@ -174,7 +174,7 @@ Event Management/
 
 #### Frontend
 
-- `VITE_API_BASE_URL`: Backend API base URL (default: http://localhost:8080)
+- `VITE_API_BASE_URL`: Backend API base URL (default: http://localhost:8080/api)
 
 ### Database Schema
 
