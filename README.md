@@ -63,7 +63,7 @@ A full-stack web application for managing events, registrations, and user intera
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/lubanrahat/Event-Management.git
 cd Event-Management
 ```
 
